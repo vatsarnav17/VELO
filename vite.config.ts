@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     plugins: [react()],
+    base: '/REPO_NAME/', // TODO: Replace 'REPO_NAME' with your GitHub repository name
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

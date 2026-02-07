@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Velo</string>
-    <string name="title_activity_main">Velo</string>
-    <string name="package_name">com.app.velo</string>
-    <string name="custom_url_scheme">com.app.velo</string>
-</resources>
