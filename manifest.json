@@ -1,0 +1,16 @@
+{
+    "name": "Velo - Minimalist Envelope Budgeting",
+    "short_name": "Velo",
+    "start_url": "./",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#ffffff",
+    "description": "A minimalist envelope budgeting application.",
+    "icons": [
+        {
+            "src": "assets/logo/logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
