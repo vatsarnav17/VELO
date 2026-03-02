@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Pencil, CreditCard } from 'lucide-react';
+import { X, Pencil, CreditCard, ArrowRightLeft } from 'lucide-react';
 import { Envelope } from '../types';
 import { getIcon } from '../constants';
 
@@ -9,9 +9,10 @@ interface EnvelopeDetailModalProps {
     onClose: () => void;
     onEdit: (e: Envelope) => void;
     onPay: (e: Envelope) => void;
+    onTransfer: (e: Envelope) => void;
 }
 
-const EnvelopeDetailModal: React.FC<EnvelopeDetailModalProps> = ({ envelope, onClose, onEdit, onPay }) => {
+const EnvelopeDetailModal: React.FC<EnvelopeDetailModalProps> = ({ envelope, onClose, onEdit, onPay, onTransfer }) => {
     const percentage = Math.min((envelope.balance / envelope.limit) * 100, 100);
 
     return (
@@ -56,20 +57,29 @@ const EnvelopeDetailModal: React.FC<EnvelopeDetailModalProps> = ({ envelope, onC
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-4">
+                    <div className="flex flex-col gap-3 pt-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => onPay(envelope)}
+                                className="py-3.5 bg-blue-600 text-white font-bold uppercase tracking-[0.2em] text-[9px] flex items-center justify-center gap-2 border border-blue-400/50 hover:bg-blue-500 active:scale-95 transition-all shadow-[0_5px_15px_rgba(37,99,235,0.2)]"
+                            >
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span className="truncate">Make Payment</span>
+                            </button>
+                            <button
+                                onClick={() => onEdit(envelope)}
+                                className="py-3.5 bg-zinc-900 border border-zinc-800 text-zinc-400 font-bold uppercase tracking-[0.2em] text-[9px] flex items-center justify-center gap-2 hover:text-white hover:border-zinc-700 active:scale-95 transition-all"
+                            >
+                                <Pencil className="w-3.5 h-3.5" />
+                                <span className="truncate">Edit Vault</span>
+                            </button>
+                        </div>
                         <button
-                            onClick={() => onPay(envelope)}
-                            className="py-3.5 bg-blue-600 text-white font-bold uppercase tracking-[0.2em] text-[9px] flex items-center justify-center gap-2 border border-blue-400/50 hover:bg-blue-500 active:scale-95 transition-all shadow-[0_5px_15px_rgba(37,99,235,0.2)]"
+                            onClick={() => onTransfer(envelope)}
+                            className="w-full py-3.5 bg-zinc-900 border border-zinc-800 text-zinc-100 font-bold uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:bg-zinc-800 active:scale-95 transition-all"
                         >
-                            <CreditCard className="w-3.5 h-3.5" />
-                            <span className="truncate">Make Payment</span>
-                        </button>
-                        <button
-                            onClick={() => onEdit(envelope)}
-                            className="py-3.5 bg-zinc-900 border border-zinc-800 text-zinc-400 font-bold uppercase tracking-[0.2em] text-[9px] flex items-center justify-center gap-2 hover:text-white hover:border-zinc-700 active:scale-95 transition-all"
-                        >
-                            <Pencil className="w-3.5 h-3.5" />
-                            <span className="truncate">Edit Vault</span>
+                            <ArrowRightLeft className="w-3.5 h-3.5 text-blue-500" />
+                            <span>Transfer Funds</span>
                         </button>
                     </div>
                 </div>

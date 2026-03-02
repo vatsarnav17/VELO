@@ -1,4 +1,3 @@
-
 export interface Envelope {
   id: string;
   name: string;
@@ -15,9 +14,11 @@ export interface Transaction {
   amount: number;
   merchant: string;
   timestamp: number;
-  type: 'debit' | 'credit';
+  type: 'debit' | 'credit' | 'transfer';
   status: 'pending' | 'completed';
   note?: string;
+  sourceId?: string;
+  destinationId?: string;
 }
 
 export interface PaymentApp {

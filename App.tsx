@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, History, Settings, Plus, CreditCard, Sparkles, Pencil, ArrowUpRight, ArrowDownLeft, X } from 'lucide-react';
+import { Home, History, Settings, Plus, CreditCard, Sparkles, Pencil, ArrowUpRight, ArrowDownLeft, X, RotateCcw, ArrowRightLeft } from 'lucide-react';
 import { Envelope, Transaction, AppScreen } from './types';
 import { INITIAL_ENVELOPES } from './constants';
 import EnvelopeCard from './components/EnvelopeCard';
 import PaymentSheet from './components/PaymentSheet';
 import EnvelopeEditModal from './components/EnvelopeEditModal';
 import EnvelopeDetailModal from './components/EnvelopeDetailModal';
+import TransferModal from './components/TransferModal';
 
-const App: React.FC = () => {
+const App = () => {
   const [activeScreen, setActiveScreen] = useState<AppScreen>(AppScreen.DASHBOARD);
   const [totalCapital, setTotalCapital] = useState<number>(() => {
     const saved = localStorage.getItem('velo_v2_total_capital');
@@ -50,6 +51,7 @@ const App: React.FC = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
 
   // History Filters
   const [historySearch, setHistorySearch] = useState('');
@@ -201,6 +203,66 @@ const App: React.FC = () => {
     });
   };
 
+  const handleTransfer = (env: Envelope) => {
+    setSelectedEnvelope(env);
+    setIsTransferOpen(true);
+  };
+
+  const transferFunds = (destId: string, amount: number, note: string) => {
+    if (!selectedEnvelope) return;
+
+    const destEnv = envelopes.find(e => e.id === destId);
+    if (!destEnv) return;
+
+    setEnvelopes(prev => prev.map(e => {
+      if (e.id === selectedEnvelope.id) return { ...e, balance: e.balance - amount };
+      if (e.id === destId) return { ...e, balance: e.balance + amount };
+      return e;
+    }));
+
+    const newTransaction: Transaction = {
+      id: Math.random().toString(36).substr(2, 9),
+      envelopeId: selectedEnvelope.id,
+      envelopeName: 'TRANSFER',
+      amount: amount,
+      merchant: `TO: ${destEnv.name.toUpperCase()}`,
+      timestamp: Date.now(),
+      type: 'transfer',
+      status: 'completed',
+      note: note,
+      sourceId: selectedEnvelope.id,
+      destinationId: destId
+    };
+
+    setTransactions(prev => [newTransaction, ...prev]);
+    setIsTransferOpen(false);
+    setAlertMessage(`TRANSFERRED ₹${amount.toLocaleString()} TO ${destEnv.name.toUpperCase()}`);
+  };
+
+  const undoTransaction = (t: Transaction) => {
+    setConfirmModalState({
+      isOpen: true,
+      message: `UNDO TRANSACTION?\nAMOUNT: ₹${t.amount.toLocaleString()}\nTYPE: ${t.type.toUpperCase()}\nNOTE: ${t.note || 'N/A'}\n\nWARNING: THIS ATTEMPTS TO REVERSE ALL BALANCE IMPACTS. PROCEED?`,
+      onConfirm: () => {
+        if (t.type === 'debit') {
+          setEnvelopes(prev => prev.map(e => e.id === t.envelopeId ? { ...e, balance: e.balance + t.amount, limit: e.limit + t.amount } : e));
+          setTotalCapital(prev => prev + t.amount);
+        } else if (t.type === 'credit') {
+          setTotalCapital(prev => prev - t.amount);
+        } else if (t.type === 'transfer') {
+          setEnvelopes(prev => prev.map(e => {
+            if (e.id === t.sourceId) return { ...e, balance: e.balance + t.amount };
+            if (e.id === t.destinationId) return { ...e, balance: e.balance - t.amount };
+            return e;
+          }));
+        }
+        setTransactions(prev => prev.filter(item => item.id !== t.id));
+        setConfirmModalState(prev => ({ ...prev, isOpen: false }));
+        setAlertMessage("HISTORY ITEM REVERSED.");
+      }
+    });
+  };
+
   return (
     <div className="flex flex-col h-[100dvh] max-w-md mx-auto bg-black text-zinc-100 overflow-hidden border-x border-zinc-800/50 font-sans relative">
       <div className="absolute inset-0 opacity-20 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
@@ -334,6 +396,21 @@ const App: React.FC = () => {
               <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Live Stream</p>
             </div>
 
+            <div className="mb-8 p-5 bg-zinc-900/20 border border-zinc-800/50 flex justify-between items-center relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-1 h-full bg-red-500/50"></div>
+              <div className="relative z-10">
+                <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-[0.25em] mb-1">Total Vault Spent</p>
+                <h3 className="text-2xl font-light text-white tracking-tighter">₹{totalDebit.toLocaleString()}</h3>
+              </div>
+              <div className="text-right relative z-10">
+                <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-[0.25em] mb-1">Activity Count</p>
+                <h3 className="text-2xl font-light text-zinc-300 tracking-tighter">{transactions.length}</h3>
+              </div>
+              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-700">
+                <History className="w-20 h-20" />
+              </div>
+            </div>
+
             {/* Filters */}
             <div className="grid grid-cols-2 gap-3 mb-6">
               <div className="space-y-1">
@@ -379,29 +456,46 @@ const App: React.FC = () => {
                   const matchesSearch = historySearch === '' || t.amount.toString().includes(historySearch) || (t.note || '').toLowerCase().includes(historySearch.toLowerCase());
                   return matchesEnvelope && matchesSearch;
                 }).map((t) => (
-                  <div key={t.id} className="p-4 bg-zinc-900/40 border border-zinc-800 flex justify-between items-center group hover:bg-zinc-900 transition-all">
+                  <div key={t.id} className="p-4 bg-zinc-900/40 border border-zinc-800 flex justify-between items-center group hover:bg-zinc-900 transition-all relative overflow-hidden">
                     <div className="flex items-center gap-4">
-                      <div className={`p-2 border ${t.type === 'credit' ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-500' : 'border-red-500/30 bg-red-500/5 text-red-500'}`}>
-                        {t.type === 'credit' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
+                      <div className={`p-2 border ${t.type === 'credit' ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-500' :
+                        t.type === 'transfer' ? 'border-blue-500/30 bg-blue-500/5 text-blue-500' :
+                          'border-red-500/30 bg-red-500/5 text-red-500'}`}>
+                        {t.type === 'credit' ? <ArrowUpRight className="w-4 h-4" /> :
+                          t.type === 'transfer' ? <ArrowRightLeft className="w-4 h-4" /> :
+                            <ArrowDownLeft className="w-4 h-4" />}
                       </div>
                       <div>
                         <div className="flex items-baseline gap-2">
                           <p className="text-xs font-bold text-white uppercase tracking-wider">
-                            {t.type === 'credit' ? 'FUNDS ADDED' : (t.envelopeName || 'MANUAL DEBIT')}
+                            {t.type === 'credit' ? 'FUNDS ADDED' : t.type === 'transfer' ? 'INTERNAL TRANSFER' : (t.envelopeName || 'MANUAL DEBIT')}
                           </p>
-                          {t.type === 'debit' && t.envelopeName && (
-                            <span className="text-[7px] text-zinc-500 font-bold px-1.5 py-0.5 border border-zinc-800 bg-black/40 tracking-widest">VAULT EXIT</span>
+                          {(t.type === 'debit' || t.type === 'transfer') && t.envelopeName && (
+                            <span className="text-[7px] text-zinc-500 font-bold px-1.5 py-0.5 border border-zinc-800 bg-black/40 tracking-widest uppercase">
+                              {t.type === 'transfer' ? 'Sync' : 'Vault Exit'}
+                            </span>
                           )}
                         </div>
-                        <p className="text-[9px] text-zinc-400 font-medium tracking-[0.05em] mt-0.5 line-clamp-1 italic italic">"{t.note}"</p>
+                        <p className="text-[9px] text-zinc-400 font-medium tracking-[0.05em] mt-0.5 line-clamp-1 italic italic">
+                          {t.merchant} {t.note ? `• "${t.note}"` : ''}
+                        </p>
                         <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest mt-1">
                           {new Date(t.timestamp).toLocaleDateString()} AT {new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                     </div>
-                    <p className={`text-sm font-bold ${t.type === 'credit' ? 'text-emerald-500' : 'text-zinc-200'}`}>
-                      {t.type === 'credit' ? '+' : '-'}₹{t.amount.toLocaleString()}
-                    </p>
+                    <div className="flex flex-col items-end gap-2">
+                      <p className={`text-sm font-bold ${t.type === 'credit' ? 'text-emerald-500' : t.type === 'transfer' ? 'text-blue-500' : 'text-zinc-200'}`}>
+                        {t.type === 'credit' ? '+' : t.type === 'transfer' ? '±' : '-'}₹{t.amount.toLocaleString()}
+                      </p>
+                      <button
+                        onClick={() => undoTransaction(t)}
+                        className="p-1.5 bg-zinc-800/50 border border-zinc-700/50 text-zinc-500 hover:text-red-500 hover:border-red-500/30 hover:bg-red-500/5 transition-all opacity-0 group-hover:opacity-100"
+                        title="UNDO TRANSACTION"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -554,6 +648,10 @@ const App: React.FC = () => {
               setIsDetailViewOpen(false);
               setIsPaymentOpen(true);
             }}
+            onTransfer={(env) => {
+              setIsDetailViewOpen(false);
+              handleTransfer(env);
+            }}
           />
         )
       }
@@ -564,6 +662,17 @@ const App: React.FC = () => {
             envelope={selectedEnvelope}
             onClose={() => setIsPaymentOpen(false)}
             onPay={processPayment}
+          />
+        )
+      }
+
+      {
+        isTransferOpen && selectedEnvelope && (
+          <TransferModal
+            sourceEnvelope={selectedEnvelope}
+            envelopes={envelopes}
+            onClose={() => setIsTransferOpen(false)}
+            onTransfer={transferFunds}
           />
         )
       }
